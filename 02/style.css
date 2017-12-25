@@ -1,0 +1,8 @@
+canvas {
+    border: 1px solid gray;
+}
+
+select {
+    display: block;
+    margin: 10px 0;
+}
