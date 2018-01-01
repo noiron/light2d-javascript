@@ -19,6 +19,50 @@ function circleSDF(x, y, cx, cy, r) {
     return Math.sqrt(ux * ux + uy * uy) - r;
 }
 
+/**
+ * 点 p(px, py) 为平面上的一点
+ * (nx, ny) 为平面的法向量，且为单位向量
+ */
+function planeSDF(x, y, px, py, nx, ny) {
+    return (x - px) * nx + (y - py) * ny;
+}
+
+/**
+ * (x, y) 至线段 ab 的距离
+ */
+function segmentSDF(x, y, ax, ay, bx, by) {
+    const vx = x - ax;
+    const vy = y - ay;
+    const ux = bx - ax;
+    const uy = by - ay;
+
+    const t = Math.max(Math.min((vx * ux + vy * uy) / (ux * ux + uy * uy), 1), 0);
+
+    const dx = vx - ux * t;
+    const dy = vy - uy * t;
+
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function capsuleSDF(x, y, ax, ay, bx, by, r) {
+    return segmentSDF(x, y, ax, ay, bx, by) - r;
+}
+
+function boxSDF(x, y, cx, cy, theta, sx, sy) {
+    const costheta = Math.cos(theta);
+    const sintheta = Math.sin(theta);
+
+    const dx = Math.abs((x - cx) * costheta + (y - cy) * sintheta) - sx;
+    const dy = Math.abs((y - cy) * costheta - (x - cx) * sintheta) - sy;
+    
+    const ax = Math.max(dx, 0);
+    const ay = Math.max(dy, 0);
+
+    return Math.min(
+        Math.max(dx, dy)
+    , 0) + Math.sqrt(ax * ax + ay * ay); 
+}
+
 function unionOp(a, b) {
     const result = a.sd < b.sd ? a : b;
     return result;
@@ -42,21 +86,22 @@ function complementOp(a) {
 }
 
 function scene(x, y) {
-    if (option == 1) {
-        const r1 = Result(circleSDF(x, y, 0.3, 0.3, 0.1), 2.0);
-        const r2 = Result(circleSDF(x, y, 0.3, 0.7, 0.05), 0.8);
-        const r3 = Result(circleSDF(x, y, 0.7, 0.5, 0.1), 0.0);
-        return unionOp(unionOp(r1, r2), r3);
-    }
-
     const a = Result(circleSDF(x, y, 0.4, 0.5, 0.2), 1);
     const b = Result(circleSDF(x, y, 0.6, 0.5, 0.2), 0.8);
 
     switch (option) {
-        case 'union': 
-            return unionOp(a, b);
-        case 'intersect':
-            return intersectOp(a, b);
+        case 'capsule':
+            const c = Result( capsuleSDF(x, y, 0.4, 0.4, 0.6, 0.6, 0.1), 1 );
+            return c;
+
+        case 'box':
+            const d = Result(boxSDF(x, y, 0.5, 0.5, Math.PI * 2 / 16, 0.3, 0.1), 1);
+            return d;
+        
+        case 'rounded-box':
+        const e = Result(boxSDF(x, y, 0.5, 0.5, Math.PI * 2 / 16, 0.3, 0.1) - 0.1, 1);
+        return e;
+
         case 'subtract-1':
             return subtractOp(a, b);
         case 'subtract-2':
