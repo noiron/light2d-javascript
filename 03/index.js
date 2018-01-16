@@ -48,6 +48,11 @@ function capsuleSDF(x, y, ax, ay, bx, by, r) {
     return segmentSDF(x, y, ax, ay, bx, by) - r;
 }
 
+/**
+ * (x, y) 至矩形的距离
+ * theta 为矩形顺时针方向旋转的角度
+ * sx, sy 分别为矩形长和宽的一半
+ */
 function boxSDF(x, y, cx, cy, theta, sx, sy) {
     const costheta = Math.cos(theta);
     const sintheta = Math.sin(theta);
@@ -58,9 +63,24 @@ function boxSDF(x, y, cx, cy, theta, sx, sy) {
     const ax = Math.max(dx, 0);
     const ay = Math.max(dy, 0);
 
-    return Math.min(
-        Math.max(dx, dy)
-    , 0) + Math.sqrt(ax * ax + ay * ay); 
+    // 需要根据点在矩形的内外分别计算距离：
+    // 如果点在矩形的内部，此时 dx < 0, dy < 0 => ax = 0, ay = 0
+    // 以下表达式的第二项为0
+    // 如果点在矩形的外部，则第一项为0
+    return Math.min(Math.max(dx, dy), 0) + Math.sqrt(ax * ax + ay * ay);
+}
+
+function triangleSDF(x, y, ax, ay, bx, by, cx, cy) {
+    const d = Math.min(
+        Math.min(
+            segmentSDF(x, y, ax, ay, bx, by),
+            segmentSDF(x, y, bx, by, cx, cy)
+        ), segmentSDF(x, y, cx, cy, ax, ay)
+    );
+
+    return (bx -ax) * (y - ay) > (by - ay) * (x - ax) &&
+        (cx - bx) * (y - by) > (cy - by) * (x - bx) &&
+        (ax - cx) * (y - cy) > (ay - cy) * (x - cx) ? -d : d;
 }
 
 function unionOp(a, b) {
@@ -99,13 +119,15 @@ function scene(x, y) {
             return d;
         
         case 'rounded-box':
-        const e = Result(boxSDF(x, y, 0.5, 0.5, Math.PI * 2 / 16, 0.3, 0.1) - 0.1, 1);
-        return e;
+            const e = Result(boxSDF(x, y, 0.5, 0.5, Math.PI * 2 / 16, 0.3, 0.1) - 0.1, 1);
+            return e;
 
-        case 'subtract-1':
-            return subtractOp(a, b);
-        case 'subtract-2':
-            return subtractOp(b, a);
+        case 'triangle':
+            return Result(triangleSDF(x, y, 0.5, 0.2, 0.8, 0.8, 0.3, 0.6), 1);
+
+        case 'rounded-triangle':
+            return Result(triangleSDF(x, y, 0.5, 0.2, 0.8, 0.8, 0.3, 0.6) - 0.1, 1);
+            
         default:
             return unionOp(a, b);
     }
